@@ -99,15 +99,75 @@ engine = tartiflette.Engine(
 
 Override the default coercer when an exception is raised.
 
+* Can be used to implement a specific behavior when something wrong happens.
+* Can be used to add custom properties to the error format.
+* Can be used to hide internal exception message.
+
 ```python
+from tartiflette.resolver.factory import default_error_coercer
+
+from tartiflette.types.exceptions.tartiflette import GraphQLError
+
+class CustomException(Exception):
+    def __init__(self, type_name, message):
+        self.type = type_name
+        self.message = message
+
+
 def my_error_coercer(exception) -> dict:
-    do_ing_some_thin_gs = 42
-    return a_value
+    error = default_error_coercer(exception)
+    
+    if isinstance(exception, CustomException):
+        error["type"] = exception.type
+
+    return error
+
 
 e = Engine(
     "my_sdl.graphql",
     error_coercer=my_error_coercer
 )
+
+```
+
+e.g when a `CustomException("custom_type", "Something wrong happened.")` exception is raised.
+
+```json
+{
+    "data": {
+        "myField": {}
+    },
+    "errors": [
+        {
+            "type": "custom_type",
+            "message": "Something wrong happened.",
+            "path": ["myField"],
+            "locations": [
+                {
+                    "line": 1,
+                    "column": 2
+                }
+            ]
+        }
+    ]
+}
+```
+
+**Warning**: Regarding the developer experience, we suggest you to avoid overriding the built-ins tartiflette error messages.
+
+```python
+from tartiflette.resolver.factory import default_error_coercer
+from tartiflette.types.exceptions.tartiflette import GraphQLError
+
+
+def my_error_coercer(exception) -> dict:
+    error = default_error_coercer(exception)
+    
+    if isinstance(exception, Exception) and \
+        not isinstance(exception, GraphQLError):
+        error["message"] = "Something wrong happened."
+
+    return error
 ```
 
 ### Parameter: `custom_default_resolver`
